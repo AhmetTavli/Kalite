@@ -1,0 +1,44 @@
+@page
+@model Kalite.Pages.ViewFileModel
+@{
+    ViewData["Title"] = $"View: {Model.ExcelData.FileName}";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>@Model.ExcelData.FileName</h2>
+        <a asp-page="/Index" class="btn btn-secondary">Back to List</a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ExcelData.ErrorMessage))
+    {
+        <div class="alert alert-danger">@Model.ExcelData.ErrorMessage</div>
+    }
+    else if (Model.ExcelData.Headers.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        @foreach (var header in Model.ExcelData.Headers)
+                        {
+                            <th>@header</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.ExcelData.Rows)
+                    {
+                        <tr>
+                            @foreach (var cell in row)
+                            {
+                                <td>@cell</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted">Total rows: @Model.ExcelData.Rows.Count</p>
+    }
+</div>

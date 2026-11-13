@@ -1,0 +1,264 @@
+﻿@page
+@model Kalite.Pages.IndexModel
+@{
+    ViewData["Title"] = "Excel Dosyaları";
+}
+
+<div class="container mt-4">
+    <h2>Kalite Kontrol Excel Dosyaları</h2>
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-info">@TempData["Message"]</div>
+    }
+
+    <!-- Yükleme -->
+    <div class="card mb-4">
+        <div class="card-header">Yeni Excel Dosyası Yükle</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" asp-page-handler="Upload">
+                <div class="mb-3">
+                    <label class="form-label">Dosya Seç</label>
+                    <div class="input-group">
+                        <input type="file" name="file" id="fileInput" accept=".xlsx" class="d-none" required />
+                        <button type="button" class="btn btn-outline-secondary"
+                                onclick="document.getElementById('fileInput').click()">
+                            Dosya Seç
+                        </button>
+                        <input type="text" class="form-control" id="fileNameDisplay" placeholder="Dosya seçilmedi."
+                               readonly />
+                    </div>
+                </div>
+                <button type="submit" id="uploadButton" class="btn btn-primary" style="display: none;">Yükle</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dosya seçimi -->
+    <div class="card mb-4">
+        <div class="card-header">Excel Dosyası Seçin:</div>
+        <div class="card-body">
+            @if (Model.Files.Any())
+            {
+                <form method="get">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-8">
+                            <select name="fileName" class="form-select" required>
+                                <option value="">-- Dosya seçin --</option>
+                                @foreach (var file in Model.Files)
+                                {
+                                    <option value="@file.FileName" selected="@(Model.ExcelData?.FileName == file.FileName)">
+                                        @file.FileName
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-success">Göster</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="mt-3">
+                    <a asp-page-handler="DownloadAll" class="btn btn-outline-primary">
+                        Sistemdeki dosyaları indir
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning mb-0">Henüz Excel dosyası yok. Lütfen yükleyin.</div>
+            }
+        </div>
+    </div>
+
+    <!-- İçerik gösterimi -->
+    @if (Model.ExcelData != null)
+    {
+        <div class="card">
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(Model.ExcelData.ErrorMessage))
+                {
+                    <div class="alert alert-danger">@Model.ExcelData.ErrorMessage</div>
+                }
+                else
+                {
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        @if (!string.IsNullOrEmpty(Model.ExcelData.Title))
+                        {
+                            <h3 class="mb-0">@Model.ExcelData.Title</h3>
+                        }
+                        else
+                        {
+                            <h3 class="mb-0">@Model.ExcelData.FileName</h3>
+                        }
+
+                        <a asp-page-handler="DownloadFile" asp-route-fileName="@Model.ExcelData.FileName"
+                           class="btn btn-outline-primary">
+                            Bu dosyayı indir
+                        </a>
+                    </div>
+
+                    @if (Model.ExcelData.Descriptions.Any())
+                    {
+                        <div class="mb-4">
+                            @foreach (var desc in Model.ExcelData.Descriptions)
+                            {
+                                <p class="mb-1">@desc</p>
+                            }
+                        </div>
+                    }
+
+                    @if (Model.ExcelData.Headers.Any())
+                    {
+                        <div class="table-responsive" style="max-height: 600px; overflow: auto;">
+                            <table class="table table-bordered table-sm table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        @foreach (var header in Model.ExcelData.Headers)
+                                        {
+                                            <th>@header</th>
+                                        }
+                                        @if (!Model.ExcelData.IsReadOnly)
+                                        {
+                                            <th style="width: 140px;">İşlemler</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < Model.ExcelData.Rows.Count; i++)
+                                    {
+                                        bool isEditing = TempData["EditRowNumber"] != null &&
+                                                         Convert.ToInt32(TempData["EditRowNumber"]) == Model.ExcelData.RowNumbers[i];
+
+                                        <tr class="@(isEditing ? "table-primary" : "")">
+                                            @if (isEditing)
+                                            {
+                                                <form method="post" asp-page-handler="UpdateRow">
+                                                    <input type="hidden" name="fileName" value="@Model.ExcelData.FileName" />
+                                                    <input type="hidden" name="rowNumber" value="@Model.ExcelData.RowNumbers[i]" />
+
+                                                    @for (int c = 0; c < Model.ExcelData.Headers.Count; c++)
+                                                    {
+                                                        <td>
+                                                            <input type="text" name="values" class="form-control form-control-sm"
+                                                                   value="@Model.ExcelData.Rows[i][c]" />
+                                                        </td>
+                                                    }
+                                                    <td class="text-nowrap">
+                                                        <button type="submit" class="btn btn-sm btn-primary">Kaydet</button>
+                                                        <a asp-page="" asp-route-fileName="@Model.ExcelData.FileName"
+                                                           class="btn btn-sm btn-secondary">İptal</a>
+                                                    </td>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var cell in Model.ExcelData.Rows[i])
+                                                {
+                                                    <td>@cell</td>
+                                                }
+                                                @if (!Model.ExcelData.IsReadOnly)
+                                                {
+                                                    <td class="text-nowrap">
+                                                        <form method="post" asp-page-handler="PrepareEdit" class="d-inline">
+                                                            <input type="hidden" name="fileName" value="@Model.ExcelData.FileName" />
+                                                            <input type="hidden" name="rowNumbers" value="@Model.ExcelData.RowNumbers[i]" />
+                                                            <button type="submit" class="btn btn-sm btn-warning">Düzenle</button>
+                                                        </form>
+                                                        <form method="post" asp-page-handler="DeleteRows" class="d-inline"
+                                                              onsubmit="return confirm('Bu satırı silmek istediğinize emin misiniz?');">
+                                                            <input type="hidden" name="fileName" value="@Model.ExcelData.FileName" />
+                                                            <input type="hidden" name="rowNumbers" value="@Model.ExcelData.RowNumbers[i]" />
+                                                            <button type="submit" class="btn btn-sm btn-danger">Sil</button>
+                                                        </form>
+                                                    </td>
+                                                }
+                                            }
+                                        </tr>
+                                    }
+
+                                    @* New row for adding *@
+                                    @if (!Model.ExcelData.IsReadOnly)
+                                    {
+                                        <tr class="table-light">
+                                            <form method="post" asp-page-handler="AddRow">
+                                                <input type="hidden" name="fileName" value="@Model.ExcelData.FileName" />
+                                                @for (int c = 0; c < Model.ExcelData.Headers.Count; c++)
+                                                {
+                                                    <td>
+                                                        <input type="text" name="values" class="form-control form-control-sm"
+                                                               placeholder="@Model.ExcelData.Headers[c]" />
+                                                    </td>
+                                                }
+                                                <td>
+                                                    <button type="submit" class="btn btn-sm btn-success">Ekle</button>
+                                                </td>
+                                            </form>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p class="text-muted mt-2">Toplam satır: @Model.ExcelData.Rows.Count</p>
+                    }
+
+                    @if (TempData["EditRowNumber"] != null && Model.ExcelData != null)
+                    {
+                        int editRow = Convert.ToInt32(TempData["EditRowNumber"]);
+                        int index = Model.ExcelData.RowNumbers.IndexOf(editRow);
+
+                        if (index >= 0)
+                        {
+                            <hr class="my-4" />
+                            <h5>Satırı Düzenle</h5>
+                            <form method="post" asp-page-handler="UpdateRow">
+                                <input type="hidden" name="fileName" value="@Model.ExcelData.FileName" />
+                                <input type="hidden" name="rowNumber" value="@editRow" />
+
+                                <div class="row">
+                                    @for (int i = 0; i < Model.ExcelData.Headers.Count; i++)
+                                    {
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">@Model.ExcelData.Headers[i]</label>
+                                            <input type="text" name="values" class="form-control" value="@Model.ExcelData.Rows[index][i]" />
+                                        </div>
+                                    }
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Güncelle</button>
+                                <a asp-page="" asp-route-fileName="@Model.ExcelData.FileName" class="btn btn-secondary ms-2">İptal</a>
+                            </form>
+                        }
+                    }
+
+                    @if (Model.ExcelData!.IsReadOnly)
+                    {
+                        <div class="alert alert-warning mt-4">
+                            Bu dosya salt okunurdur. Değişiklik yapılamaz.
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const uploadButton = document.getElementById('uploadButton');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            if (this.files && this.files.length > 0) {
+                fileNameDisplay.value = this.files[0].name;
+                uploadButton.style.display = 'inline-block';
+            } else {
+                fileNameDisplay.value = '';
+                uploadButton.style.display = 'none';
+            }
+        });
+    }
+</script>
